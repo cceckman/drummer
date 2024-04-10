@@ -1,0 +1,37 @@
+
+main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#box {
+    background-color: bisque;
+    height: min(50vw, 50vh);
+    width: min(50vw, 50vh);
+    margin-top: min(12vw, 12vh) ;
+
+    display: grid;
+}
+
+.key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0.25em;
+    font-family: monospace;
+}
+
+.key.inactive {
+    background-color: aliceblue;
+}
+
+.key.active {
+    background-color: aqua;
+}
+
+#playctl {
+    font-size: larger;
+    justify-content: center;
+}
