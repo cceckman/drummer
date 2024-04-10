@@ -177,7 +177,8 @@ class Recorder {
         this.status.innerText = "Let's jam!";
         this.recorder.start();
         console.log("recorder: ", this.recorder.state);
-        setTimeout(() => { this.complete() }, secondsPerBeat * 1000);
+        // Sample slightly longer than one beat
+        setTimeout(() => { this.complete() }, 2 * secondsPerBeat * 1000);
     }
 
     complete() {
