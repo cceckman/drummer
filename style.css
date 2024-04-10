@@ -3,16 +3,19 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: monospace;
+    flex-direction: column;
+    padding-top: min(12vw, 12vh) ;
 }
 
 #box {
     background-color: bisque;
     min-height: min(50vw, 50vh);
     min-width: min(50vw, 50vh);
-    margin-top: min(12vw, 12vh) ;
 
     display: grid;
 }
+
 
 .key {
     display: flex;
@@ -20,7 +23,6 @@ main {
     justify-content: center;
 
     margin: 0.25em;
-    font-family: monospace;
 }
 
 .key.inactive {
@@ -34,4 +36,8 @@ main {
 #playctl {
     font-size: larger;
     justify-content: center;
+}
+
+#recording {
+    width: 15em;
 }

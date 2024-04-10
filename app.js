@@ -2,35 +2,29 @@
 // https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
 // !
 
+// Quarter note is 140 bpm
+let tempo = 140.0;
+// Sequence eighth-notes
+let note = 8;
+// Tempo is 4tr note:
+const secondsPerBeat = 60.0 / tempo;
+
 class BeatBox {
-    constructor(w) {
+    constructor() {
         this.sample_names = ["clap", "unnn", "snap"];
 
         this.ctx = null;
-        this.width = w;
-        this.height = this.sample_names.length;
 
         this.container = document.createElement("div");
         this.box = document.createElement("div");
         this.container.appendChild(this.box);
 
         this.box.id = "box";
-        const cols = 100.0 / this.width;
-        const rows = 100.0 / this.height;
-        let style = `grid-template-columns: repeat(${w}, 1fr); grid-auto-rows: ${rows};`;
+        const cols = 100.0 / note;
+        let style = `grid-template-columns: repeat(${note}, 1fr); `;
         this.box.style = style;
-        for (let i = 0; i < this.height; i++) {
-            for (let j = 0; j < this.width; j++) {
-                const cell = document.createElement("button");
-                for (let cls of ["key", "inactive", `row-${i}`, `col-${j}`]) {
-                    cell.classList.add(cls);
-                }
-                cell.addEventListener("click", (receiver, ev) => {
-                    this.press(j, i);
-                });
-                cell.innerText = this.sample_names[i];
-                this.box.appendChild(cell);
-            }
+        for(const sample of ["clap", "unnn", "snap"]) {
+            // this.add_sample(sample);
         }
 
         this.control = document.createElement("p");
@@ -52,31 +46,39 @@ class BeatBox {
         this.playing = false;
     }
 
-    play() {
-        if (this.ctx === null) {
-            // We should actually disable control while we're setting up, but that's hard.
+    prepare() {
+        if(this.ctx == null) {
             console.log("setting up audio context...");
-            this.control.innerText = "…";
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioContext();
-
-            // Do initial setup, async:
-            async function setupSample(sample) {
-            };
-            Promise.all(this.sample_names.map(
-                async (sample_name) => {
-                    // TODO actually use different tracks
-                    const response = await fetch(`samples/${sample_name}.wav`);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-                    this.buffers.set(sample_name, audioBuffer);
-                }
-            )).then(() => {
-                console.log("loaded samples, starting");
-                this.play();
-            });
-            return;
         }
+    }
+
+    add_sample(name, blob) {
+        (async (name, blob) => {
+            let data = await blob.arrayBuffer();
+            const audioBuffer = await this.ctx.decodeAudioData(data);
+            this.buffers.set(name, audioBuffer);
+
+            // Now we have the sample, add it to the sequencer.
+            let i = this.sample_names.length;
+            this.sample_names.push(name);
+            for (let j = 0; j < note; j++) {
+                const cell = document.createElement("button");
+                for (let cls of ["key", "inactive", `row-${i}`, `col-${j}`]) {
+                    cell.classList.add(cls);
+                }
+                cell.addEventListener("click", (receiver, ev) => {
+                    this.press(j, i);
+                });
+                cell.innerText = this.sample_names[i];
+                this.box.appendChild(cell);
+            }
+        })(name, blob)
+    }
+
+    play() {
+        this.prepare();
         console.log("playing");
         this.playing = true;
         this.beat = 0;
@@ -101,14 +103,13 @@ class BeatBox {
     }
 
     tick() {
-        if(!this.playing) {
+        if (!this.playing) {
             return;
         }
         // Shamelessly from https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques#playing_the_audio_in_time
-        let tempo = 280.0;
         const lookahead = 25.0; // millisec
         const scheduleAheadTime = 0.1; // sec
-        const secondsPerBeat = 60.0 / tempo;
+        const tickTime = secondsPerBeat / (note / 4)
 
         while (this.nextNoteTime < this.ctx.currentTime + scheduleAheadTime) {
             for (let pad of document.querySelectorAll(`button.key.col-${this.beat}`)) {
@@ -120,8 +121,8 @@ class BeatBox {
                 }
             }
 
-            this.nextNoteTime += secondsPerBeat;
-            this.beat = (this.beat + 1) % (this.width);
+            this.nextNoteTime += tickTime;
+            this.beat = (this.beat + 1) % note;
         }
         this.timerId = setTimeout(() => { this.tick() }, lookahead);
     }
@@ -144,6 +145,80 @@ class BeatBox {
 }
 
 
+const bb = new BeatBox();
+bb.insert(document.getElementById("box-loader"));
 
-(new BeatBox(8)).insert(document.getElementById("box-loader"));
+class Recorder {
+    constructor(bb) {
+        this.bb = bb;
+        this.button = document.getElementById("record");
+        this.ident = document.getElementById("name");
+        this.status = document.getElementById("recording");
+
+        this.recorder = null;
+
+        this.state = -1;
+        this.chunks = [];
+    }
+
+    countdown() {
+        if(this.state == -1) {
+            // Early setup of audio context, so we can rely on it when adding the buffer.
+            this.bb.prepare();
+            this.state = 3;
+        }
+        if(this.state > 0) {
+            this.status.innerText = `${this.state}`;
+            this.state -= 1;
+            setTimeout(() => { this.countdown() }, 1000 * secondsPerBeat);
+            return;
+        }
+        // this.state == 0, we're recording
+        this.status.innerText = "Let's jam!";
+        this.recorder.start();
+        console.log("recorder: ", this.recorder.state);
+        setTimeout(() => { this.complete() }, secondsPerBeat * 1000);
+    }
+
+    complete() {
+        this.recorder.stop();
+        console.log("recorder: ", this.recorder.state);
+        this.status.innerText = "Ready?";
+        this.state = -1;
+    }
+
+    append() {
+        console.log("handling media");
+        const blob = new Blob(this.chunks, { type: this.recorder.mimeType });
+        this.chunks = [];
+        const name = this.ident.value;
+        this.bb.add_sample(name, blob);
+
+    }
+
+    attach(stream) {
+        this.recorder = new MediaRecorder(stream);
+        this.recorder.addEventListener("dataavailable", (ev) => {
+            console.log("got media data");
+             this.chunks.push(ev.data) });
+        this.recorder.addEventListener("stop", (ev) => { this.append() });
+
+
+        this.button.addEventListener("click", () => { this.countdown() });
+    }
+
+    disable() {
+        this.button.disabled = true;
+        this.ident.disabled = true;
+        this.status.innerText = "Cannot add samples."
+    }
+};
+
+const recorder = new Recorder(bb);
+
+navigator.mediaDevices.getUserMedia({audio: true}).then(
+     (stream) => { recorder.attach(stream); },
+     () => { recorder.disable() }
+);
+
 
