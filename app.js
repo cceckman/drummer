@@ -4,7 +4,7 @@
 
 class BeatBox {
     constructor(w) {
-        this.sample_names = ["clap", "unts", "snap", "pfft"];
+        this.sample_names = ["clap", "unnn", "snap"];
 
         this.ctx = null;
         this.width = w;
@@ -66,7 +66,7 @@ class BeatBox {
             Promise.all(this.sample_names.map(
                 async (sample_name) => {
                     // TODO actually use different tracks
-                    const response = await fetch(`samples/clap.wav`);
+                    const response = await fetch(`samples/${sample_name}.wav`);
                     const arrayBuffer = await response.arrayBuffer();
                     const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
                     this.buffers.set(sample_name, audioBuffer);
@@ -105,16 +105,14 @@ class BeatBox {
             return;
         }
         // Shamelessly from https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques#playing_the_audio_in_time
-        let tempo = 60.0;
+        let tempo = 280.0;
         const lookahead = 25.0; // millisec
         const scheduleAheadTime = 0.1; // sec
         const secondsPerBeat = 60.0 / tempo;
 
         while (this.nextNoteTime < this.ctx.currentTime + scheduleAheadTime) {
-            console.log("scheduling pass for ", this.nextNoteTime)
             for (let pad of document.querySelectorAll(`button.key.col-${this.beat}`)) {
                 if (pad.classList.contains("active")) {
-                    console.log("activating ", pad.innerText, " at ", this.nextNoteTime)
                     const buffer = this.buffers.get(pad.innerText);
                     const sampleSource = new AudioBufferSourceNode(this.ctx, { buffer: buffer });
                     sampleSource.connect(this.ctx.destination);
@@ -147,5 +145,5 @@ class BeatBox {
 
 
 
-(new BeatBox(4, 4)).insert(document.getElementById("box-loader"));
+(new BeatBox(8)).insert(document.getElementById("box-loader"));
 

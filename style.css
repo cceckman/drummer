@@ -7,8 +7,8 @@ main {
 
 #box {
     background-color: bisque;
-    height: min(50vw, 50vh);
-    width: min(50vw, 50vh);
+    min-height: min(50vw, 50vh);
+    min-width: min(50vw, 50vh);
     margin-top: min(12vw, 12vh) ;
 
     display: grid;
